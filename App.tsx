@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Globe, Info, CloudOff, CloudLightning, Clock } from 'lucide-react';
+import { Plus, Globe, Info, CloudOff, CloudLightning, Clock, Trash2, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DreamMap from './components/DreamMap';
 import DreamInputModal from './components/DreamInputModal';
@@ -7,7 +7,7 @@ import DreamDetailPopup from './components/DreamDetailPopup';
 import CountryStatsPopup from './components/CountryStatsPopup';
 import FilterBar from './components/FilterBar';
 import { Dream, DreamCategory, CountryStats } from './types';
-import { fetchDreams, saveDream, subscribeToDreams, getRateLimitStatus } from './services/storageService';
+import { fetchDreams, saveDream, subscribeToDreams, getRateLimitStatus, clearLocalData } from './services/storageService';
 import { isSupabaseConfigured } from './services/supabaseClient';
 import { calculateRegionalStats } from './services/aggregationService';
 
@@ -73,6 +73,13 @@ function App() {
     setSelectedDream(null); // Close dream details if open
     const stats = calculateRegionalStats(countryName, feature, dreams);
     setSelectedCountryStats(stats);
+  };
+
+  const handleResetData = () => {
+    if (window.confirm("DEBUG: Reset all local identity and data? This will clear your anonymous ID, rate limits, and locally stored dreams.")) {
+      clearLocalData();
+      window.location.reload();
+    }
   };
 
   return (
@@ -145,6 +152,17 @@ function App() {
                 >
                   Enter Map
                 </button>
+
+                {/* DEBUG / TESTING SECTION */}
+                <div className="mt-8 pt-6 border-t border-white/5">
+                  <button 
+                    onClick={handleResetData}
+                    className="flex items-center justify-center gap-2 mx-auto px-4 py-1.5 rounded border border-red-500/20 bg-red-500/5 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 text-[10px] transition-all font-mono uppercase tracking-wider"
+                  >
+                    <ShieldCheck size={10} />
+                    Reset Identity / Unblock
+                  </button>
+                </div>
              </motion.div>
           </div>
         )}

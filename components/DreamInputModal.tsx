@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, MapPin, AlertCircle, Loader2, Clock, Moon, MapPinOff } from 'lucide-react';
 import { Dream } from '../types';
 import { analyzeDream } from '../services/geminiService';
-import { applyFuzzyLogic, getRandomLocation } from '../services/storageService';
+import { applyFuzzyLogic, getRandomLocation, generateUUID } from '../services/storageService';
 
 interface DreamInputModalProps {
   isOpen: boolean;
@@ -86,7 +86,7 @@ const DreamInputModal: React.FC<DreamInputModalProps> = ({ isOpen, onClose, onSa
       const analysis = await analyzeDream(text);
 
       const newDream: Dream = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         text: text,
         category: analysis.category,
         summary: analysis.summary,

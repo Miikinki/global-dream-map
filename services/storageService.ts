@@ -54,12 +54,55 @@ const SEED_DREAMS: Dream[] = [
   }
 ];
 
+// --- UTILS ---
+
+/**
+ * Robust UUID generator that works in all environments (including non-secure HTTP and older mobile browsers).
+ * Falls back to Math.random if crypto.randomUUID is not available.
+ */
+export const generateUUID = (): string => {
+  // 1. Try native modern API
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch (e) {
+      // Fallback if it fails
+    }
+  }
+
+  // 2. Fallback implementation (RFC4122 compliant-ish)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+export const applyFuzzyLogic = (lat: number, lng: number): { lat: number, lng: number } => {
+    const minOffset = 0.09;
+    const maxOffset = 0.45;
+    
+    const latOffset = (Math.random() * (maxOffset - minOffset) + minOffset) * (Math.random() < 0.5 ? -1 : 1);
+    const lngOffset = (Math.random() * (maxOffset - minOffset) + minOffset) * (Math.random() < 0.5 ? -1 : 1);
+
+    return {
+        lat: lat + latOffset,
+        lng: lng + lngOffset
+    };
+};
+
+export const getRandomLocation = (): { lat: number, lng: number } => {
+  const lat = (Math.random() * 140) - 70;
+  const lng = (Math.random() * 360) - 180;
+  return { lat, lng };
+};
+
 // --- IDENTITY & RATE LIMITING ---
 
 export const getAnonymousID = (): string => {
   let id = localStorage.getItem(USER_ID_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = generateUUID();
     localStorage.setItem(USER_ID_KEY, id);
   }
   return id;
@@ -86,10 +129,6 @@ export const getRateLimitStatus = async (): Promise<{ isLimited: boolean; cooldo
   } else {
     // 2. Fallback to local storage filtering
     const allDreams = getLocalDreams();
-    // We assume local dreams might not have user_id if they are seeds, so we check if we saved them
-    // For simplicity in local-only mode, we just check *all* dreams created locally in this session context?
-    // Actually, let's filter the local storage dreams by an inferred ownership or just assume local user owns local storage dreams.
-    // Ideally we add user_id to local storage objects too.
     recentDreams = allDreams
         .filter(d => (d as any).user_id === userId && d.timestamp > cutoff)
         .map(d => d.timestamp)
@@ -98,18 +137,6 @@ export const getRateLimitStatus = async (): Promise<{ isLimited: boolean; cooldo
 
   // Logic: Max 2 dreams per rolling 24h.
   if (recentDreams.length >= MAX_DAILY_DREAMS) {
-    // If we have 2 or more, we are limited until the oldest one in the window expires.
-    // The slot opens 24h after the timestamp of the dream that pushed us (or kept us) at the limit.
-    // Effectively: We need to wait until the count drops below MAX.
-    // The count drops when the oldest dream in the window passes the 24h mark.
-    
-    // We take the (Count - Max + 1)th oldest dream. 
-    // E.g. if we have 2 dreams, we need 1 to expire. That's the 1st one (index 0).
-    // If we somehow had 3 dreams (race condition), we need 2 to expire to get to 1, or 2 to expire to get to 0? 
-    // We just need count < Max. So we need (Length - Max + 1) dreams to expire.
-    // The time we become free is when the (Length - Max)th dream expires?
-    // Let's simplify: We are blocked until the oldest valid dream expires.
-    
     const oldestValidDreamTimestamp = recentDreams[0];
     return {
       isLimited: true,
@@ -171,7 +198,7 @@ export const fetchDreams = async (): Promise<Dream[]> => {
         lat: d.location_lat,
         lng: d.location_lng
       },
-      user_id: d.user_id // Preserve user_id for filtering
+      user_id: d.user_id
     }));
   }
 
@@ -237,23 +264,10 @@ export const subscribeToDreams = (callback: (payload: any) => void) => {
   return null;
 };
 
-// --- UTILS ---
+// --- DEBUG / ADMIN ---
 
-export const applyFuzzyLogic = (lat: number, lng: number): { lat: number, lng: number } => {
-    const minOffset = 0.09;
-    const maxOffset = 0.45;
-    
-    const latOffset = (Math.random() * (maxOffset - minOffset) + minOffset) * (Math.random() < 0.5 ? -1 : 1);
-    const lngOffset = (Math.random() * (maxOffset - minOffset) + minOffset) * (Math.random() < 0.5 ? -1 : 1);
-
-    return {
-        lat: lat + latOffset,
-        lng: lng + lngOffset
-    };
-};
-
-export const getRandomLocation = (): { lat: number, lng: number } => {
-  const lat = (Math.random() * 140) - 70;
-  const lng = (Math.random() * 360) - 180;
-  return { lat, lng };
+export const clearLocalData = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(USER_ID_KEY);
+  console.log("Local data cleared.");
 };
