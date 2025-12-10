@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { DreamCategory, AnalysisResult } from '../types';
+import { getEnvVar } from './env';
 
 // Fallback logic for simulation if API fails or key is missing
 const simulateAnalysis = (text: string): AnalysisResult => {
@@ -30,7 +31,7 @@ const simulateAnalysis = (text: string): AnalysisResult => {
 };
 
 export const analyzeDream = async (dreamText: string): Promise<AnalysisResult> => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = getEnvVar('API_KEY');
 
   if (!apiKey) {
     console.warn("No API Key found. Using simulated analysis.");
@@ -99,7 +100,7 @@ export const analyzeDream = async (dreamText: string): Promise<AnalysisResult> =
 };
 
 export const translateDream = async (text: string, interpretation: string, targetLang: string) => {
-  const apiKey = process.env.API_KEY;
+  const apiKey = getEnvVar('API_KEY');
   if (!apiKey) return null;
 
   try {

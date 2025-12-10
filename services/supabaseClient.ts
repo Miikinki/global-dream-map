@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { getEnvVar } from './env';
 
-// Retrieve credentials from environment
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+// Retrieve credentials safely
+const supabaseUrl = getEnvVar('SUPABASE_URL');
+const supabaseKey = getEnvVar('SUPABASE_ANON_KEY');
 
 // Create client only if keys exist
 export const supabase = (supabaseUrl && supabaseKey) 
