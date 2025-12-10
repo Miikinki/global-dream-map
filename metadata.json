@@ -1,0 +1,7 @@
+{
+  "name": "Global Dream Map",
+  "description": "An anonymous, privacy-focused global map where users log their dreams. Features a dark sci-fi aesthetic, fuzzy location logic for privacy, and AI-powered dream analysis.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
