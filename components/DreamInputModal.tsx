@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, MapPin, AlertCircle, Loader2, Clock, Moon } from 'lucide-react';
+import { X, Send, MapPin, AlertCircle, Loader2, Clock, Moon, MapPinOff } from 'lucide-react';
 import { Dream } from '../types';
 import { analyzeDream } from '../services/geminiService';
 import { applyFuzzyLogic, getRandomLocation } from '../services/storageService';
@@ -15,6 +15,7 @@ interface DreamInputModalProps {
 const DreamInputModal: React.FC<DreamInputModalProps> = ({ isOpen, onClose, onSave, cooldownUntil }) => {
   const [text, setText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>('');
 
@@ -47,32 +48,40 @@ const DreamInputModal: React.FC<DreamInputModalProps> = ({ isOpen, onClose, onSa
   const handleSubmit = async () => {
     if (!text.trim()) return;
 
-    setIsAnalyzing(true);
+    setIsLocating(true);
+    setIsAnalyzing(false);
     setError(null);
 
     try {
       let lat: number;
       let lng: number;
 
+      // 1. Get Location
       try {
         if (!navigator.geolocation) throw new Error("No Geolocation");
 
         const position = await new Promise<GeolocationPosition>((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(resolve, reject, {
-             timeout: 5000, 
-             enableHighAccuracy: false 
+             timeout: 15000, // Increased to 15s for mobile permissions
+             enableHighAccuracy: false, // Use wifi/cell towers for speed
+             maximumAge: 60000 // Accept cached location up to 1 min old
           });
         });
 
         lat = position.coords.latitude;
         lng = position.coords.longitude;
       } catch (locError) {
-        console.warn("Geolocation failed, using random location:", locError);
+        console.warn("Geolocation failed or timed out, using random location:", locError);
         const randomLoc = getRandomLocation();
         lat = randomLoc.lat;
         lng = randomLoc.lng;
+        // Optional: Notify user we fell back to random, or just stay silent as per "Anonymity" theme
       }
 
+      setIsLocating(false);
+      setIsAnalyzing(true);
+
+      // 2. Fuzzy Logic & Analysis
       const fuzzyLocation = applyFuzzyLogic(lat, lng);
       const analysis = await analyzeDream(text);
 
@@ -94,6 +103,7 @@ const DreamInputModal: React.FC<DreamInputModalProps> = ({ isOpen, onClose, onSa
       console.error(err);
       setError("Failed to transmit dream. Please try again.");
     } finally {
+      setIsLocating(false);
       setIsAnalyzing(false);
     }
   };
@@ -178,10 +188,15 @@ const DreamInputModal: React.FC<DreamInputModalProps> = ({ isOpen, onClose, onSa
 
                   <button
                     onClick={handleSubmit}
-                    disabled={isAnalyzing || !text.trim()}
+                    disabled={isAnalyzing || isLocating || !text.trim()}
                     className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium text-white shadow-lg shadow-purple-900/20 transition-all flex items-center justify-center gap-2"
                   >
-                    {isAnalyzing ? (
+                    {isLocating ? (
+                      <>
+                        <MapPin className="animate-pulse" size={18} />
+                        ACQUIRING COORDINATES...
+                      </>
+                    ) : isAnalyzing ? (
                       <>
                         <Loader2 className="animate-spin" size={20} />
                         ANALYZING SIGNAL...
