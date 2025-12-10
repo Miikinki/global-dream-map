@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents, GeoJSON } from 'react-leaflet';
 import * as L from 'leaflet';
 import { Dream, DreamCategory } from '../types';
-import { CATEGORY_COLORS, MAP_TILE_URL, MAP_ATTRIBUTION } from '../constants';
+import { CATEGORY_COLORS, MAP_TILE_URL, MAP_ATTRIBUTION, WORLD_GEOJSON_URL } from '../constants';
+import { calculateRegionalStats } from '../services/aggregationService';
 
 interface DreamMapProps {
   dreams: Dream[];
   filter: DreamCategory | 'ALL';
   onDreamClick: (dream: Dream) => void;
+  onCountryClick?: (countryName: string, feature: any) => void;
   focusDream: Dream | null;
 }
 
@@ -61,6 +63,126 @@ const MapController: React.FC<{ focusDream: Dream | null }> = ({ focusDream }) =
   }, [focusDream, map]);
 
   return null;
+};
+
+// Component to handle World GeoJSON Layer with Dynamic Coloring
+const WorldBordersLayer: React.FC<{ 
+  onCountryClick?: (name: string, feature: any) => void;
+  dreams: Dream[]; 
+}> = ({ onCountryClick, dreams }) => {
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+  const [countryThemes, setCountryThemes] = useState<Record<string, DreamCategory>>({});
+
+  useEffect(() => {
+    fetch(WORLD_GEOJSON_URL)
+      .then(res => res.json())
+      .then(data => setGeoJsonData(data))
+      .catch(err => console.error("Failed to load world borders", err));
+  }, []);
+
+  // Calculate dominant themes for countries
+  useEffect(() => {
+    if (!geoJsonData || dreams.length === 0) return;
+
+    // Use a timeout to avoid blocking the main thread immediately on render
+    const timer = setTimeout(() => {
+      const themes: Record<string, DreamCategory> = {};
+      
+      geoJsonData.features.forEach((feature: any) => {
+        const name = feature.properties?.name || feature.properties?.NAME;
+        if (name) {
+          // We can optimize this by only calculating if there are dreams roughly in the area,
+          // but for now we rely on the aggregation service's filter.
+          const stats = calculateRegionalStats(name, feature, dreams);
+          if (stats.totalDreams > 0 && stats.dominantTheme !== 'N/A') {
+            themes[name] = stats.dominantTheme as DreamCategory;
+          }
+        }
+      });
+      
+      setCountryThemes(themes);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [geoJsonData, dreams]);
+
+  if (!geoJsonData) return null;
+
+  return (
+    <GeoJSON 
+      data={geoJsonData}
+      style={(feature) => {
+        const name = feature?.properties?.name || feature?.properties?.NAME;
+        const theme = name ? countryThemes[name] : undefined;
+        
+        if (theme) {
+          const color = CATEGORY_COLORS[theme];
+          return {
+            fillColor: color,
+            fillOpacity: 0.2, // Subtle glowing fill
+            color: color,
+            weight: 1.5,
+            opacity: 0.8,
+          };
+        }
+
+        return {
+          fillColor: '#ffffff',
+          fillOpacity: 0, // Invisible fill for hit detection
+          color: '#ffffff',
+          weight: 0.5, // Very subtle borders
+          opacity: 0.1,
+        };
+      }}
+      onEachFeature={(feature, layer) => {
+        layer.on({
+          click: (e) => {
+            L.DomEvent.stopPropagation(e); // Prevent map click
+            // Try to find name in common properties
+            const name = feature.properties?.name || feature.properties?.NAME || 'Unknown Region';
+            if (onCountryClick) {
+              onCountryClick(name, feature);
+            }
+          },
+          mouseover: (e) => {
+            const l = e.target;
+            const name = feature.properties?.name || feature.properties?.NAME;
+            const theme = name ? countryThemes[name] : undefined;
+            
+            // Highlight style (brighter if themed, else blueish)
+            l.setStyle({
+              weight: 2,
+              opacity: 0.8,
+              fillOpacity: theme ? 0.3 : 0.1,
+              color: theme ? CATEGORY_COLORS[theme] : '#3b82f6'
+            });
+          },
+          mouseout: (e) => {
+             const l = e.target;
+             const name = feature.properties?.name || feature.properties?.NAME;
+             const theme = name ? countryThemes[name] : undefined;
+             
+             // Reset style
+             if (theme) {
+               l.setStyle({
+                 weight: 1.5,
+                 opacity: 0.8,
+                 fillOpacity: 0.2,
+                 color: CATEGORY_COLORS[theme]
+               });
+             } else {
+               l.setStyle({
+                  weight: 0.5,
+                  opacity: 0.1,
+                  fillOpacity: 0,
+                  color: '#ffffff'
+               });
+             }
+          }
+        });
+      }}
+    />
+  );
 };
 
 // Inner component to handle markers, logic, and spiderfy state using map context
@@ -197,7 +319,7 @@ const DreamMarkers: React.FC<{
   );
 };
 
-const DreamMap: React.FC<DreamMapProps> = ({ dreams, filter, onDreamClick, focusDream }) => {
+const DreamMap: React.FC<DreamMapProps> = ({ dreams, filter, onDreamClick, onCountryClick, focusDream }) => {
   return (
     <div className="fixed inset-0 z-0 bg-[#0a0a12]">
       <MapContainer
@@ -216,6 +338,8 @@ const DreamMap: React.FC<DreamMapProps> = ({ dreams, filter, onDreamClick, focus
           attribution={MAP_ATTRIBUTION}
           url={MAP_TILE_URL}
         />
+
+        <WorldBordersLayer onCountryClick={onCountryClick} dreams={dreams} />
         
         <DreamMarkers 
           dreams={dreams} 

@@ -22,8 +22,21 @@ export const CATEGORY_DESCRIPTIONS: Record<DreamCategory, string> = {
   [DreamCategory.ADVENTURE]: 'Exploration, flying, or epic journeys.',
 };
 
+export const CATEGORY_SENTIMENT: Record<DreamCategory, number> = {
+  [DreamCategory.NIGHTMARE]: -0.9,
+  [DreamCategory.STRESS]: -0.7,
+  [DreamCategory.MUNDANE]: 0.0,
+  [DreamCategory.SURREAL]: 0.2,
+  [DreamCategory.PROPHETIC]: 0.4,
+  [DreamCategory.ADVENTURE]: 0.7,
+  [DreamCategory.LUCID]: 0.8,
+  [DreamCategory.ROMANTIC]: 0.9,
+};
+
 export const MAP_TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 export const MAP_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+export const WORLD_GEOJSON_URL = 'https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json';
 
 export const MAX_DAILY_DREAMS = 2;
 export const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours

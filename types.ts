@@ -30,3 +30,16 @@ export interface AnalysisResult {
 }
 
 export type ViewState = 'map' | 'list' | 'input';
+
+export interface TrendingSymbol {
+  word: string;
+  count: number;
+}
+
+export interface CountryStats {
+  countryName: string;
+  totalDreams: number;
+  dominantTheme: DreamCategory | 'N/A';
+  moodScore: number; // -100 to 100
+  trendingSymbols: TrendingSymbol[];
+}

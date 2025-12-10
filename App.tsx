@@ -4,16 +4,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import DreamMap from './components/DreamMap';
 import DreamInputModal from './components/DreamInputModal';
 import DreamDetailPopup from './components/DreamDetailPopup';
+import CountryStatsPopup from './components/CountryStatsPopup';
 import FilterBar from './components/FilterBar';
-import { Dream, DreamCategory } from './types';
+import { Dream, DreamCategory, CountryStats } from './types';
 import { fetchDreams, saveDream, subscribeToDreams, getRateLimitStatus } from './services/storageService';
 import { isSupabaseConfigured } from './services/supabaseClient';
+import { calculateRegionalStats } from './services/aggregationService';
 
 function App() {
   const [dreams, setDreams] = useState<Dream[]>([]);
   const [filter, setFilter] = useState<DreamCategory | 'ALL'>('ALL');
   const [isInputOpen, setIsInputOpen] = useState(false);
   const [selectedDream, setSelectedDream] = useState<Dream | null>(null);
+  const [selectedCountryStats, setSelectedCountryStats] = useState<CountryStats | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   
   // Rate Limiting State
@@ -62,7 +65,14 @@ function App() {
   };
 
   const handleDreamClick = (dream: Dream) => {
+    setSelectedCountryStats(null); // Close country stats if open
     setSelectedDream(dream);
+  };
+
+  const handleCountryClick = (countryName: string, feature: any) => {
+    setSelectedDream(null); // Close dream details if open
+    const stats = calculateRegionalStats(countryName, feature, dreams);
+    setSelectedCountryStats(stats);
   };
 
   return (
@@ -72,6 +82,7 @@ function App() {
         dreams={dreams} 
         filter={filter} 
         onDreamClick={handleDreamClick}
+        onCountryClick={handleCountryClick}
         focusDream={latestDream}
       />
 
@@ -125,7 +136,8 @@ function App() {
                   Every dot represents a dream log. 
                   <br/><br/>
                   Locations are fuzzed by 10-50km to ensure total anonymity. 
-                  Share your own dreams to join the collective mind.
+                  <br/>
+                  <span className="text-blue-400">New:</span> Click on a country to see regional dream statistics.
                 </p>
                 <button 
                   onClick={() => setShowIntro(false)}
@@ -146,6 +158,11 @@ function App() {
           />
         )}
       </AnimatePresence>
+
+      <CountryStatsPopup 
+        stats={selectedCountryStats}
+        onClose={() => setSelectedCountryStats(null)}
+      />
 
       <div className="fixed bottom-24 right-6 z-[400]">
         <button
