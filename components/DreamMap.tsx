@@ -119,10 +119,10 @@ const WorldBordersLayer: React.FC<{
           const color = CATEGORY_COLORS[theme];
           return {
             fillColor: color,
-            fillOpacity: 0.2, // Subtle glowing fill
+            fillOpacity: 0.03, // Almost transparent interior for dark aesthetic
             color: color,
-            weight: 1.5,
-            opacity: 0.8,
+            weight: 1.5, // Crisp outline
+            opacity: 1, // Full opacity for the neon wireframe look
           };
         }
 
@@ -145,20 +145,27 @@ const WorldBordersLayer: React.FC<{
             }
           },
           mouseover: (e) => {
-            const l = e.target;
+            const l = e.target as any;
             const name = feature.properties?.name || feature.properties?.NAME;
             const theme = name ? countryThemes[name] : undefined;
             
             // Highlight style (brighter if themed, else blueish)
             l.setStyle({
-              weight: 2,
-              opacity: 0.8,
-              fillOpacity: theme ? 0.3 : 0.1,
+              weight: 3, // Thicker on hover
+              opacity: 1,
+              fillOpacity: 0.1, // Slight fill to indicate selection area
               color: theme ? CATEGORY_COLORS[theme] : '#3b82f6'
             });
+
+            // Add CSS drop-shadow for a true glowing effect
+            if (l.getElement()) {
+              const color = theme ? CATEGORY_COLORS[theme] : '#3b82f6';
+              l.getElement().style.filter = `drop-shadow(0 0 8px ${color})`;
+              l.getElement().style.transition = 'all 0.3s ease';
+            }
           },
           mouseout: (e) => {
-             const l = e.target;
+             const l = e.target as any;
              const name = feature.properties?.name || feature.properties?.NAME;
              const theme = name ? countryThemes[name] : undefined;
              
@@ -166,8 +173,8 @@ const WorldBordersLayer: React.FC<{
              if (theme) {
                l.setStyle({
                  weight: 1.5,
-                 opacity: 0.8,
-                 fillOpacity: 0.2,
+                 opacity: 1,
+                 fillOpacity: 0.03,
                  color: CATEGORY_COLORS[theme]
                });
              } else {
@@ -177,6 +184,11 @@ const WorldBordersLayer: React.FC<{
                   fillOpacity: 0,
                   color: '#ffffff'
                });
+             }
+
+             // Remove glow
+             if (l.getElement()) {
+               l.getElement().style.filter = '';
              }
           }
         });
